@@ -151,6 +151,7 @@ flowchart TD
     L1 -->|"arrival_city = MAD"| MAD
     L3 -->|"arrival_city = LIS"| LIS
     L4 -->|"arrival_city = PMI = destination"| DIRECT
+    R4 -->|"same flight as L4"| DIRECT
     R1 -->|"departure_city = MAD"| MAD
     R2 -->|"departure_city = MAD"| MAD
     R3 -->|"departure_city = LIS"| LIS
