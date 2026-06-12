@@ -1,0 +1,406 @@
+{
+  "info": {
+    "name": "flights-api",
+    "description": "Test collection for journeys-api and flight-events-api.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "journeys_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "events_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "flight-events-api",
+      "item": [
+        {
+          "name": "List all flight events",
+          "request": {
+            "method": "GET",
+            "url": "{{events_url}}/flight-events",
+            "description": "Returns the full list of available flight events from the stub repository."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "  pm.expect(body.length).to.be.greaterThan(0);",
+                  "});",
+                  "pm.test('Each event has required fields', () => {",
+                  "  const body = pm.response.json();",
+                  "  body.forEach(event => {",
+                  "    pm.expect(event).to.have.all.keys('flight_number', 'departure_city', 'arrival_city', 'departure_datetime', 'arrival_datetime');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "journeys-api — happy path",
+      "item": [
+        {
+          "name": "Direct flight — BUE to PMI",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&from=BUE&to=PMI",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "from", "value": "BUE" },
+                { "key": "to", "value": "PMI" }
+              ]
+            },
+            "description": "Expects both a direct journey (connections: 1) and connecting journeys (connections: 2) via MAD and LIS."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns a non-empty list', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array').with.lengthOf.above(0);",
+                  "});",
+                  "pm.test('Contains a direct journey (connections: 1)', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.some(j => j.connections === 1)).to.be.true;",
+                  "});",
+                  "pm.test('Contains a connecting journey (connections: 2)', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.some(j => j.connections === 2)).to.be.true;",
+                  "});",
+                  "pm.test('Each journey has correct shape', () => {",
+                  "  const body = pm.response.json();",
+                  "  body.forEach(journey => {",
+                  "    pm.expect(journey).to.have.keys('connections', 'path');",
+                  "    pm.expect(journey.path).to.be.an('array').with.lengthOf.above(0);",
+                  "    journey.path.forEach(leg => {",
+                  "      pm.expect(leg).to.have.all.keys('flight_number', 'from', 'to', 'departure_time', 'arrival_time');",
+                  "    });",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Connecting flight — BUE to MAD",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&from=BUE&to=MAD",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "from", "value": "BUE" },
+                { "key": "to", "value": "MAD" }
+              ]
+            },
+            "description": "Direct flights from BUE to MAD."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All results arrive at MAD', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.length).to.be.above(0);",
+                  "  body.forEach(journey => {",
+                  "    const last = journey.path[journey.path.length - 1];",
+                  "    pm.expect(last.to).to.equal('MAD');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Multiple intermediate cities — GRU to PMI",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&from=GRU&to=PMI",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "from", "value": "GRU" },
+                { "key": "to", "value": "PMI" }
+              ]
+            },
+            "description": "GRU connects to PMI via MAD."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All journeys depart from GRU', () => {",
+                  "  const body = pm.response.json();",
+                  "  body.forEach(journey => {",
+                  "    pm.expect(journey.path[0].from).to.equal('GRU');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "No results — BUE to NYC",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&from=BUE&to=NYC",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "from", "value": "BUE" },
+                { "key": "to", "value": "NYC" }
+              ]
+            },
+            "description": "No flight events connect BUE to NYC — expects an empty list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns empty list', () => {",
+                  "  pm.expect(pm.response.json()).to.deep.equal([]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Case-insensitive city codes — bue to pmi",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&from=bue&to=pmi",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "from", "value": "bue" },
+                { "key": "to", "value": "pmi" }
+              ]
+            },
+            "description": "Lowercase city codes should return the same results as uppercase."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns results despite lowercase input', () => {",
+                  "  pm.expect(pm.response.json().length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Different date — BUE to MAD on 2026-06-13",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-13&from=BUE&to=MAD",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-13" },
+                { "key": "from", "value": "BUE" },
+                { "key": "to", "value": "MAD" }
+              ]
+            },
+            "description": "Search on a different date — only events departing on 2026-06-13 should be returned."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All first legs depart on 2026-06-13', () => {",
+                  "  const body = pm.response.json();",
+                  "  body.forEach(journey => {",
+                  "    pm.expect(journey.path[0].departure_time).to.include('2026-06-13');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "journeys-api — validation errors",
+      "item": [
+        {
+          "name": "400 — same origin and destination",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&from=BUE&to=BUE",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "from", "value": "BUE" },
+                { "key": "to", "value": "BUE" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message mentions different cities', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.detail.toLowerCase()).to.include('different');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 — missing date",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?from=BUE&to=PMI",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "from", "value": "BUE" },
+                { "key": "to", "value": "PMI" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 — missing from",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&to=PMI",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "to", "value": "PMI" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 — missing to",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=2026-06-12&from=BUE",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "2026-06-12" },
+                { "key": "from", "value": "BUE" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 — invalid date format",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{journeys_url}}/journeys/search?date=12-06-2026&from=BUE&to=PMI",
+              "host": ["{{journeys_url}}"],
+              "path": ["journeys", "search"],
+              "query": [
+                { "key": "date", "value": "12-06-2026" },
+                { "key": "from", "value": "BUE" },
+                { "key": "to", "value": "PMI" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

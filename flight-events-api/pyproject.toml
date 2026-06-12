@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "flight-events-api"
+version = "0.0.1"
+description = "Stub repository of individual flight events"
+authors = []
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.5"
+uvicorn = { version = "^0.32.1", extras = ["standard"] }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
