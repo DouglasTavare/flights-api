@@ -67,9 +67,9 @@ GET /journeys/search?date=YYYY-MM-DD&from=XXX&to=XXX
 
 ### Why not a simple nested loop?
 
-The naive approach — iterating over all possible `(first_leg, second_leg)` pairs — has **O(N²)** complexity in the worst case, where N is the total number of flight events. With large flight schedules this becomes a bottleneck, even though N is typically small for airline data.
+A nested loop iterating over all `(first_leg, second_leg)` pairs has **O(N²)** complexity. As the number of flight events grows, the cost grows quadratically — checking pairs that will never produce a valid result.
 
-A smarter approach combines three techniques: **pre-indexing**, **bidirectional filtering**, and **binary search**.
+The algorithm avoids this by reducing candidates at each step before any pairing happens, combining three techniques: **pre-indexing**, **bidirectional filtering**, and **binary search**.
 
 ---
 
